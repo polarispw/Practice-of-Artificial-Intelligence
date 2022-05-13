@@ -93,7 +93,6 @@ def main(args):
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
 
     best_val_acc = 0
-
     if not os.path.exists("./estimate_info"):
         os.mkdir("./estimate_info")
     results_file = "./estimate_info/info-{}.txt".format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
