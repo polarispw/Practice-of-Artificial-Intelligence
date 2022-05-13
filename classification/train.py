@@ -137,7 +137,7 @@ if __name__ == '__main__':
     parser.add_argument('--lrf', type=float, default=0.01)
 
     # 数据集所在根目录
-    parser.add_argument('--data-path', type=str, default="E:/git repositories/Fundus-Imaging-Diagnosis/datasets_for_efficientnetV2")
+    parser.add_argument('--data-path', type=str, default="datasets")
 
     # load model weights
     parser.add_argument('--weights', type=str, default='./best_acc.pth', help='initial weights path')
