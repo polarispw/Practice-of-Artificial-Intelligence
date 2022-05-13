@@ -55,7 +55,7 @@ def read_split_data(root: str, val_rate: float = 0.2):
     print("{} images for training.".format(len(train_images_path)))
     print("{} images for validation.".format(len(val_images_path)))
 
-    plot_image = False
+    plot_image = False # 想看样本分布把这改成True
     if plot_image:
         # 绘制每种类别个数柱状图
         plt.bar(range(len(flower_class)), every_class_num, align='center')
@@ -69,10 +69,10 @@ def read_split_data(root: str, val_rate: float = 0.2):
         # 设置y坐标
         plt.ylabel('number of images')
         # 设置柱状图的标题
-        plt.title('flower class distribution')
+        plt.title('class distribution')
         plt.show()
 
-    return train_images_path, train_images_label, val_images_path, val_images_label
+    return train_images_path, train_images_label, val_images_path, val_images_label, every_class_num
 
 class Estimate():
     def __init__(self, num_classes:int, is_train=True):
@@ -123,11 +123,16 @@ class Estimate():
             f.write(info + err_list + "\n")
 
 
-def train_one_epoch(model, optimizer, data_loader, device, epoch, info_path):
+def train_one_epoch(model, optimizer, data_loader, device, epoch, cls_num, info_path):
     model.train()
     estimator = Estimate(4)
 
-    loss_function = torch.nn.CrossEntropyLoss()
+    weights = torch.tensor(cls_num, dtype=torch.float32).cuda()
+    weights = weights / weights.sum()
+    weights = 1.0 / weights
+    class_weights = weights / weights.sum()
+
+    loss_function = torch.nn.CrossEntropyLoss(weight=class_weights)
     accu_loss = torch.zeros(1).to(device)  # 累计损失
     accu_num = torch.zeros(1).to(device)   # 累计预测正确的样本数
     optimizer.zero_grad()
