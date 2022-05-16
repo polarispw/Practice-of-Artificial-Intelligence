@@ -32,9 +32,9 @@ def main():
         class_indict = json.load(f)
 
     # create model
-    model = create_model(num_classes=2).to(device)
+    model = create_model(num_classes=4).to(device)
     # load model weights
-    model_weight_path = "best_acc.pth"
+    model_weight_path = "best_weight.pth"
     model.load_state_dict(torch.load(model_weight_path, map_location=device))
     model.eval()
 
@@ -45,7 +45,7 @@ def main():
          transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
 
     # procedure
-    data_path = "../../test"
+    data_path = "test"
     img_names = os.listdir(data_path)
     res = []
     for i in tqdm(img_names):
@@ -61,9 +61,8 @@ def main():
         b = np.zeros(a.shape)
         cv2.circle(b, (int(a.shape[1] / 2), int(a.shape[0] / 2)), int(scale * 0.9), (1, 1, 1), -1, 8, 0)
         a = a * b + 128 * (1 - b)
-        cv2.imwrite('./temp.png', a)
-        img = Image.open('./temp.png')
-
+        img = Image.fromarray(np.uint8(a))
+        img.show()
         img = data_transform(img)
         # expand batch dimension
         img = torch.unsqueeze(img, dim=0)
@@ -130,7 +129,7 @@ def do_on_test():
     print("Results have been saved in test_soft_labels.csv")
 
 if __name__ == '__main__':
-    # main()
-    # res = np.load('pre.npy')
-    # print(res)
-    do_on_test()
+    main()
+    res = np.load('pre.npy')
+    print(res)
+    # do_on_test()

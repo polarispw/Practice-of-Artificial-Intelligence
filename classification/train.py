@@ -96,12 +96,12 @@ def main(args):
     lf = lambda x: ((1 + math.cos(x * math.pi / args.epochs)) / 2) * (1 - args.lrf) + args.lrf  # cosine
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf) # Scheduler https://arxiv.org/pdf/1812.01187.pdf
     # RMSprop
-    optimizer = optim.Adam(pg, lr=args.lr, weight_decay=1E-5)
-    def lr_lambda(current_step: int):
-        num_warmup_steps = 5
-        if current_step < num_warmup_steps:
-            return float(current_step) / float(max(1, num_warmup_steps))
-        return max(0.0, pow(0.99, int(current_step/2.4)))
+    # optimizer = optim.Adam(pg, lr=args.lr, weight_decay=1E-5)
+    # def lr_lambda(current_step: int):
+    #     num_warmup_steps = 5
+    #     if current_step < num_warmup_steps:
+    #         return float(current_step) / float(max(1, num_warmup_steps))
+    #     return max(0.0, pow(0.99, int(current_step/2.4)))
 
     # 训练参数和记录存储
     log_path = "./train_log/{}".format(datetime.datetime.now().strftime("%Y_%m%d-%H_%M_%S"))
@@ -149,8 +149,8 @@ def main(args):
                                      info_path=results_file)
 
         tags = ["train_loss", "train_acc", "val_loss", "val_acc", "learning_rate"]
-        tb_writer.add_scalar(tags[0], train_loss, epoch)
-        tb_writer.add_scalar(tags[1], train_acc, epoch)
+        # tb_writer.add_scalar(tags[0], train_loss, epoch)
+        # tb_writer.add_scalar(tags[1], train_acc, epoch)
         tb_writer.add_scalar(tags[2], val_loss, epoch)
         tb_writer.add_scalar(tags[3], val_acc, epoch)
         tb_writer.add_scalar(tags[4], optimizer.param_groups[0]["lr"], epoch)
@@ -172,7 +172,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_classes', type=int, default=4)
-    parser.add_argument('--epochs', type=int, default=30)
+    parser.add_argument('--epochs', type=int, default=1)
     parser.add_argument('--batch-size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--lrf', type=float, default=0.01)
@@ -181,9 +181,9 @@ if __name__ == '__main__':
     parser.add_argument('--data-path', type=str, default="datasets")
 
     # load model weights
-    parser.add_argument('--weights', type=str, default='', help='initial weights path')
-    parser.add_argument('--resume', type=str, default='train_log/2022_0515-10_26_07/checkpoint.pth', help='checkpoint path')
-    parser.add_argument('--freeze-layers', type=bool, default=True)
+    parser.add_argument('--weights', type=str, default='best_weight.pth', help='initial weights path')
+    parser.add_argument('--resume', type=str, default='', help='checkpoint path')
+    parser.add_argument('--freeze-layers', type=bool, default=False)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
 
     opt = parser.parse_args()

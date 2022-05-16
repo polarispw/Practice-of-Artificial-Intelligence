@@ -19,12 +19,6 @@ from utils import read_split_data, train_one_epoch, evaluate
 def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
-    print(args)
-    print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
-    tb_writer = SummaryWriter()
-    if os.path.exists("./train_log") is False:
-        os.makedirs("./train_log")
-
     train_images_path, train_images_label, val_images_path, val_images_label, cls_num = read_split_data(args.data_path)
 
     img_size = {"s": [300, 384],  # train_size, val_size
@@ -81,11 +75,11 @@ def main(args):
 
     layer_list = []
     count = 0
-    # for k in model.children():
-    #     count += 1
-    #     layer_list.append([count, k])
-    # with open("resnext101_layer_list.txt", "w") as f:
-    #     f.write(str(layer_list))
+    for k in model.children():
+        count += 1
+        layer_list.append([count, k])
+    with open("resnext101_layer_list.txt", "w") as f:
+        f.write(str(layer_list))
 
     for k in model.children():
         count += 1
@@ -104,6 +98,12 @@ def main(args):
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf) # Scheduler https://arxiv.org/pdf/1812.01187.pdf
 
     # 训练参数和记录存储
+    print(args)
+    print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
+    tb_writer = SummaryWriter()
+    if os.path.exists("./train_log") is False:
+        os.makedirs("./train_log")
+
     log_path = "./train_log/{}".format(datetime.datetime.now().strftime("%Y_%m%d-%H_%M_%S"))
     start_epoch = 0
     best_val_acc = 0
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     parser.add_argument('--data-path', type=str, default="datasets")
 
     # load model weights
-    parser.add_argument('--weights', type=str, default='resnext101_32x8d-8ba56ff5.pth', help='initial weights path')
+    parser.add_argument('--weights', type=str, default='', help='initial weights path')
     parser.add_argument('--resume', type=str, default='', help='checkpoint path')
     parser.add_argument('--freeze-layers', type=bool, default=False)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')

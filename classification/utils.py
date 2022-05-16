@@ -78,6 +78,7 @@ class Estimate():
     def __init__(self, num_classes:int, is_train=True):
         self.predict_list = []
         self.label_list = []
+        self.prob_list = []
         self.name_list = []
         self.err_name_list = []
         self.num_in_classes = torch.zeros(num_classes)
@@ -86,17 +87,18 @@ class Estimate():
         self.precision = torch.zeros(num_classes)
         self.recall = torch.zeros(num_classes)
 
-    def add(self, pred_classes, labels, names):
+    def add(self, pred_classes, prob, labels, names):
         self.predict_list.extend(pred_classes)
+        self.prob_list.extend(prob)
         self.label_list.extend(labels)
         self.name_list.extend(names)
 
     def cal(self):
-        for x, y, n in zip(self.predict_list, self.label_list, self.name_list):
+        for x, p, y, n in zip(self.predict_list, self.prob_list, self.label_list, self.name_list):
             self.pre_in_classes[x] += 1
             self.num_in_classes[y] += 1
             if x != y:
-                self.err_name_list.append((n, y, x)) # [图片名, 原始标签, 错判标签]
+                self.err_name_list.append((n, y, x, p)) # [图片名, 原始标签, 错判标签]
             else:
                 self.true_labels[x] += 1
 
@@ -118,7 +120,7 @@ class Estimate():
             for i in self.err_name_list:
                 name = i[0].split("\\")
                 name = name[-2]+"/"+name[-1]
-                err_list += f"path: {name}    {i[1]}    {i[2]}\n"
+                err_list += f"path: {name}    {i[1]}    {i[2]}    {i[3]}\n"
 
             f.write(info + err_list + "\n")
 
@@ -147,7 +149,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, cls_num, info_
         pred_classes = torch.max(pred, dim=1)[1]
         accu_num += torch.eq(pred_classes, labels.to(device)).sum()
 
-        estimator.add(pred_classes.cpu().numpy().tolist(), labels.cpu().numpy().tolist(), names)
+        estimator.add(pred_classes.cpu().numpy().tolist(), pred.cpu().numpy().tolist(), labels.cpu().numpy().tolist(), names)
 
         loss = loss_function(pred, labels.to(device))
         loss.backward()
@@ -190,7 +192,7 @@ def evaluate(model, data_loader, device, epoch, info_path):
         pred_classes = torch.max(pred, dim=1)[1]
         accu_num += torch.eq(pred_classes, labels.to(device)).sum()
 
-        estimator.add(pred_classes.cpu().numpy().tolist(), labels.cpu().numpy().tolist(), names)
+        estimator.add(pred_classes.cpu().numpy().tolist(), pred.cpu().numpy().tolist(), labels.cpu().numpy().tolist(), names)
 
         loss = loss_function(pred, labels.to(device))
         accu_loss += loss
