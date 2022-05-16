@@ -131,15 +131,15 @@ def main(args):
 
     for epoch in range(start_epoch, args.epochs):
         # train
-        train_loss, train_acc = train_one_epoch(model=model,
-                                                optimizer=optimizer,
-                                                data_loader=train_loader,
-                                                device=device,
-                                                epoch=epoch,
-                                                cls_num=cls_num,
-                                                info_path=results_file)
-
-        scheduler.step()
+        # train_loss, train_acc = train_one_epoch(model=model,
+        #                                         optimizer=optimizer,
+        #                                         data_loader=train_loader,
+        #                                         device=device,
+        #                                         epoch=epoch,
+        #                                         cls_num=cls_num,
+        #                                         info_path=results_file)
+        #
+        # scheduler.step()
 
         # validate
         val_loss, val_acc = evaluate(model=model,
@@ -149,8 +149,8 @@ def main(args):
                                      info_path=results_file)
 
         tags = ["train_loss", "train_acc", "val_loss", "val_acc", "learning_rate"]
-        # tb_writer.add_scalar(tags[0], train_loss, epoch)
-        # tb_writer.add_scalar(tags[1], train_acc, epoch)
+        tb_writer.add_scalar(tags[0], train_loss, epoch)
+        tb_writer.add_scalar(tags[1], train_acc, epoch)
         tb_writer.add_scalar(tags[2], val_loss, epoch)
         tb_writer.add_scalar(tags[3], val_acc, epoch)
         tb_writer.add_scalar(tags[4], optimizer.param_groups[0]["lr"], epoch)
