@@ -132,7 +132,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, cls_num, info_
     weights = 1.0 / weights
     class_weights = weights / weights.sum()
 
-    loss_function = torch.nn.CrossEntropyLoss(weight=class_weights)
+    loss_function = torch.nn.CrossEntropyLoss()
     accu_loss = torch.zeros(1).to(device)  # 累计损失
     accu_num = torch.zeros(1).to(device)   # 累计预测正确的样本数
     optimizer.zero_grad()

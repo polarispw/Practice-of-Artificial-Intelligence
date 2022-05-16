@@ -1,13 +1,14 @@
 import os
 import json
 
+import pandas as pd
 import torch
 from PIL import Image
 from torchvision import transforms
 from tqdm import tqdm
 import numpy as np
 import cv2
-from model import efficientnetv2_s as create_model
+from model import efficientnetv2_m as create_model
 
 def scaleRadius(img,scale):
     x = img[int(img.shape[0]/2),:,:].sum(1) # 图像中间1行的像素的3个通道求和。输出（width*1）
@@ -21,7 +22,7 @@ def main():
     img_size = {"s": [300, 384],  # train_size, val_size
                 "m": [384, 480],
                 "l": [384, 480]}
-    num_model = "s"
+    num_model = "m"
 
     # read class_indict
     json_path = './class_indices.json'
@@ -77,7 +78,59 @@ def main():
     np.save("./pre.npy", res)
     print("Results have been saved in pre.npy")
 
+def do_on_test():
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    img_size = {"s": [300, 384],  # train_size, val_size
+                "m": [384, 480],
+                "l": [384, 480]}
+    num_model = "m"
+
+    # read class_indict
+    json_path = './class_indices.json'
+    assert os.path.exists(json_path), "file: '{}' dose not exist.".format(json_path)
+
+    with open(json_path, "r") as f:
+        class_indict = json.load(f)
+
+    # create model
+    model = create_model(num_classes=4).to(device)
+    # load model weights
+    model_weight_path = "best_weight.pth"
+    model.load_state_dict(torch.load(model_weight_path, map_location=device))
+    model.eval()
+
+    data_transform = transforms.Compose(
+        [transforms.Resize(img_size[num_model][1]),
+         transforms.CenterCrop(img_size[num_model][1]),
+         transforms.ToTensor(),
+         transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
+
+    # procedure
+    data_path = "test_images"
+    img_names = os.listdir(data_path)
+    res = []
+    for i in tqdm(img_names):
+        img_path = data_path + "/" + i
+        assert os.path.exists(img_path), "file: '{}' dose not exist.".format(img_path)
+        img = Image.open(img_path)
+        img = data_transform(img)
+        img = torch.unsqueeze(img, dim=0)
+
+        with torch.no_grad():
+            # predict class
+            output = torch.squeeze(model(img.to(device))).cpu()
+            predict = torch.softmax(output, dim=0)
+            predict_cls = torch.argmax(predict).item()
+            prob = predict[predict_cls].item()
+        res.append([str(i), int(predict_cls)]) if prob > 0.7 else ...
+    name = ['img_name', 'cls']
+    test = pd.DataFrame(columns=name, data=res)
+    test.to_csv('test_soft_labels.csv', encoding='gbk')
+    print("Results have been saved in test_soft_labels.csv")
+
 if __name__ == '__main__':
-    main()
-    res = np.load('pre.npy')
-    print(res)
+    # main()
+    # res = np.load('pre.npy')
+    # print(res)
+    do_on_test()

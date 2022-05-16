@@ -7,6 +7,7 @@ import json
 import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
+import torchvision.models as models
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
@@ -68,7 +69,7 @@ def main(args):
                                              collate_fn=val_dataset.collate_fn)
 
     # 预训练权重
-    model = create_model(num_classes=args.num_classes).to(device)
+    model = models.resnext101_32x8d().to(device)
     if args.weights != "" and args.resume == "":
         if os.path.exists(args.weights):
             weights_dict = torch.load(args.weights, map_location=device)
@@ -77,31 +78,30 @@ def main(args):
             print(model.load_state_dict(load_weights_dict, strict=False))
         else:
             raise FileNotFoundError("No weights file: {}".format(args.weights))
-    elif args.weights != "" and args.resume != "":
-        raise ValueError("Set weights as '' if you wanna start from checkpoint")
 
-    # 冻结权重
-    if args.freeze_layers:
-        for name, para in model.named_parameters():
-            # 除head外，其他权重全部冻结
-            if "head" not in name:
-                para.requires_grad_(False)
-            else:
-                print("training {}".format(name))
-    pg = [p for p in model.parameters() if p.requires_grad]
+    layer_list = []
+    count = 0
+    # for k in model.children():
+    #     count += 1
+    #     layer_list.append([count, k])
+    # with open("resnext101_layer_list.txt", "w") as f:
+    #     f.write(str(layer_list))
+
+    for k in model.children():
+        count += 1
+        if count > 7:
+            ...
+        else:
+            for param in k.parameters():
+                param.requires_grad = False
+    input_features = model.fc.in_features
+    model.fc = torch.nn.Linear(input_features, 4).to(device)
 
     # 优化器调度器
-    # SGD
-    optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=1E-4)
+    pg = [p for p in model.parameters() if p.requires_grad]
+    optimizer = torch.optim.Adam(pg, lr=args.lr)
     lf = lambda x: ((1 + math.cos(x * math.pi / args.epochs)) / 2) * (1 - args.lrf) + args.lrf  # cosine
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf) # Scheduler https://arxiv.org/pdf/1812.01187.pdf
-    # RMSprop
-    optimizer = optim.Adam(pg, lr=args.lr, weight_decay=1E-5)
-    def lr_lambda(current_step: int):
-        num_warmup_steps = 5
-        if current_step < num_warmup_steps:
-            return float(current_step) / float(max(1, num_warmup_steps))
-        return max(0.0, pow(0.99, int(current_step/2.4)))
 
     # 训练参数和记录存储
     log_path = "./train_log/{}".format(datetime.datetime.now().strftime("%Y_%m%d-%H_%M_%S"))
@@ -119,15 +119,12 @@ def main(args):
             scheduler.load_state_dict(checkpoint['scheduler'])
         else:
             assert True, "Fail to load checkpoint, check its path."
-    # last_epoch = -1 if start_epoch==0 else start_epoch
-    # scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda, last_epoch=last_epoch)
 
     if not os.path.exists(log_path):
         os.mkdir(log_path)
     with open(log_path + "/arg_list.json", "w") as f:
         f.write(json.dumps(vars(args)))
     results_file = os.path.join(log_path, "err_list.txt")
-    print(optimizer.param_groups[0]["lr"])
 
     for epoch in range(start_epoch, args.epochs):
         # train
@@ -172,18 +169,18 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_classes', type=int, default=4)
-    parser.add_argument('--epochs', type=int, default=30)
-    parser.add_argument('--batch-size', type=int, default=8)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--lr', type=float, default=0.005)
     parser.add_argument('--lrf', type=float, default=0.01)
 
     # 数据集所在根目录
     parser.add_argument('--data-path', type=str, default="datasets")
 
     # load model weights
-    parser.add_argument('--weights', type=str, default='', help='initial weights path')
-    parser.add_argument('--resume', type=str, default='train_log/2022_0515-10_26_07/checkpoint.pth', help='checkpoint path')
-    parser.add_argument('--freeze-layers', type=bool, default=True)
+    parser.add_argument('--weights', type=str, default='resnext101_32x8d-8ba56ff5.pth', help='initial weights path')
+    parser.add_argument('--resume', type=str, default='', help='checkpoint path')
+    parser.add_argument('--freeze-layers', type=bool, default=False)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
 
     opt = parser.parse_args()
