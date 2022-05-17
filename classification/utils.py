@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
-def read_split_data(root: str, val_rate: float = 0.2):
+def read_split_data(root: str, val_rate: float = 0.5):
     random.seed(0)  # 保证随机结果可复现
     assert os.path.exists(root), "dataset root: {} does not exist.".format(root)
 
@@ -134,7 +134,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, cls_num, info_
     weights = 1.0 / weights
     class_weights = weights / weights.sum()
 
-    loss_function = torch.nn.CrossEntropyLoss()
+    loss_function = torch.nn.CrossEntropyLoss(weight=class_weights)
     accu_loss = torch.zeros(1).to(device)  # 累计损失
     accu_num = torch.zeros(1).to(device)   # 累计预测正确的样本数
     optimizer.zero_grad()
@@ -173,12 +173,16 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, cls_num, info_
 
 
 @torch.no_grad()
-def evaluate(model, data_loader, device, epoch, info_path):
-    loss_function = torch.nn.CrossEntropyLoss()
-
+def evaluate(model, data_loader, device, epoch, cls_num, info_path):
     model.eval()
     estimator = Estimate(4)
 
+    weights = torch.tensor(cls_num, dtype=torch.float32).cuda()
+    weights = weights / weights.sum()
+    weights = 1.0 / weights
+    class_weights = weights / weights.sum()
+
+    loss_function = torch.nn.CrossEntropyLoss(weight=class_weights)
     accu_num = torch.zeros(1).to(device)   # 累计预测正确的样本数
     accu_loss = torch.zeros(1).to(device)  # 累计损失
 

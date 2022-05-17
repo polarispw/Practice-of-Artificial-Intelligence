@@ -146,6 +146,7 @@ def main(args):
                                      data_loader=val_loader,
                                      device=device,
                                      epoch=epoch,
+                                     cls_num=cls_num,
                                      info_path=results_file)
 
         tags = ["train_loss", "train_acc", "val_loss", "val_acc", "learning_rate"]
@@ -178,7 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('--lrf', type=float, default=0.01)
 
     # 数据集所在根目录
-    parser.add_argument('--data-path', type=str, default="datasets")
+    parser.add_argument('--data-path', type=str, default="test_dataset")
 
     # load model weights
     parser.add_argument('--weights', type=str, default='best_weight.pth', help='initial weights path')

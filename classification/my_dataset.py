@@ -33,12 +33,11 @@ class MyDataSet(Dataset):
         return len(self.images_path)
 
     def __getitem__(self, item):
-        img = Image.open(self.images_path[item])
-        # RGB为彩色图片，L为灰度图片
-        if img.mode != 'RGB':
-            raise ValueError("image: {} isn't RGB mode.".format(self.images_path[item]))
-        # img = cv2.imread(self.images_path[item])
-        # img = pre_process(img)
+        # img = Image.open(self.images_path[item])
+        # if img.mode != 'RGB':
+        #     raise ValueError("image: {} isn't RGB mode.".format(self.images_path[item]))
+        img = cv2.imread(self.images_path[item])
+        img = pre_process(img)
         label = self.images_class[item]
 
         if self.transform is not None:
