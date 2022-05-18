@@ -85,17 +85,21 @@ def main(args):
     pg = [p for p in model.parameters() if p.requires_grad]
 
     # 优化器调度器
-    # SGD
-    optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=1E-4)
-    lf = lambda x: ((1 + math.cos(x * math.pi / args.epochs)) / 2) * (1 - args.lrf) + args.lrf  # cosine
-    scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf) # Scheduler https://arxiv.org/pdf/1812.01187.pdf
-    # Adam
-    # optimizer = optim.Adam(pg, lr=args.lr, weight_decay=1E-5)
-    # def lr_lambda(current_step: int):
-    #     num_warmup_steps = 5
-    #     if current_step < num_warmup_steps:
-    #         return float(current_step) / float(max(1, num_warmup_steps))
-    #     return max(0.0, pow(0.99, int(current_step/2.4)))
+    if args.optimizer == 'SGD':
+        # SGD
+        optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=1E-4)
+    else:
+        # Adam
+        optimizer = optim.Adam(pg, lr=args.lr, weight_decay=1E-5)
+
+    def lr_lambda(current_step: int):
+        num_warmup_steps = 5 if "warmup" in args.scheduler else -1
+        if current_step < num_warmup_steps:
+            return float(current_step) / float(max(1, num_warmup_steps))
+        if "cosine" in args.scheduler:
+            return ((1 + math.cos(current_step * math.pi / args.epochs)) / 2) * (1 - args.lrf) + args.lrf
+        return max(1E-3, pow(0.5, int(current_step/1)))
+    scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)  # Scheduler https://arxiv.org/pdf/1812.01187.pdf
 
     # 训练参数和记录存储
     print(args)
@@ -103,8 +107,6 @@ def main(args):
     if os.path.exists("./runs") is False:
         os.makedirs("./runs")
     log_path = "./runs/{}".format(datetime.datetime.now().strftime("%Y_%m%d-%H_%M_%S"))
-    if not os.path.exists(log_path):
-        os.mkdir(log_path)
 
     start_epoch = 0
     best_val_acc = 0
@@ -121,6 +123,8 @@ def main(args):
         else:
             assert True, "Fail to load checkpoint, check its path."
 
+    if not os.path.exists(log_path):
+        os.mkdir(log_path)
     tb_writer = SummaryWriter(log_dir=log_path)
     with open(log_path + "/arg_list_epoch[{}].json".format(start_epoch), "w") as f:
         f.write(json.dumps(vars(args)))
@@ -172,15 +176,17 @@ if __name__ == '__main__':
     parser.add_argument('--num_classes', type=int, default=4)
     parser.add_argument('--epochs', type=int, default=30)
     parser.add_argument('--batch-size', type=int, default=8)
-    parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--lrf', type=float, default=0.01)
+    parser.add_argument('--lr', type=float, default=0.01)
+    parser.add_argument('--lrf', type=float, default=1E-3)
+    parser.add_argument('--optimizer', type=str, default='Adam', help='choose from SGD and Adam')
+    parser.add_argument('--scheduler', type=str, default='cosine warmup', help='write your lr schedule keywords')
 
     # 数据集所在根目录
     parser.add_argument('--data-path', type=str, default="datasets")
 
     # load model weights
     parser.add_argument('--weights', type=str, default='', help='initial weights path')
-    parser.add_argument('--resume', type=str, default='runs/2022_0518-08_20_04/checkpoint.pth', help='checkpoint path')
+    parser.add_argument('--resume', type=str, default='runs/2022_0518-13_17_34/checkpoint.pth', help='checkpoint path')
     parser.add_argument('--freeze-layers', type=bool, default=True)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
 
