@@ -29,7 +29,8 @@ def main(args):
         "train": transforms.Compose([transforms.RandomResizedCrop(img_size[num_model][0]),
                                      transforms.RandomHorizontalFlip(),
                                      transforms.ToTensor(),
-                                     transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])]),
+                                     transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+                                     ]),
         "val": transforms.Compose([transforms.Resize(img_size[num_model][1]),
                                    transforms.CenterCrop(img_size[num_model][1]),
                                    transforms.ToTensor(),
@@ -63,6 +64,7 @@ def main(args):
 
     # 预训练权重
     model = create_model(num_classes=args.num_classes).to(device)
+
     if args.weights != "" and args.resume == "":
         if os.path.exists(args.weights):
             weights_dict = torch.load(args.weights, map_location=device)
@@ -165,7 +167,7 @@ def main(args):
             'optimizer': optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
             }
-        torch.save(checkpoint, log_path + "/checkpoint.pth")
+        torch.save(checkpoint, log_path + f"/checkpoint_from[{start_epoch}].pth")
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc

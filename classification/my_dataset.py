@@ -42,7 +42,6 @@ class MyDataSet(Dataset):
 
         if self.transform is not None:
             img = self.transform(img)
-
         return img, label, self.images_path[item]
 
     @staticmethod

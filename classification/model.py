@@ -246,7 +246,7 @@ class EfficientNetV2(nn.Module):
         for cnf in model_cnf:
             assert len(cnf) == 8
 
-        norm_layer = partial(nn.BatchNorm2d, eps=1e-3, momentum=0.1 )
+        norm_layer = partial(nn.BatchNorm2d, eps=1e-3, momentum=0.1)
 
         stem_filter_num = model_cnf[0][4]
 
