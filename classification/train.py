@@ -18,12 +18,6 @@ from utils import read_split_data, train_one_epoch, evaluate
 def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
-    print(args)
-    print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
-    tb_writer = SummaryWriter()
-    if os.path.exists("./train_log") is False:
-        os.makedirs("./train_log")
-
     train_images_path, train_images_label, val_images_path, val_images_label, cls_num = read_split_data(args.data_path)
 
     img_size = {"s": [300, 384],  # train_size, val_size
@@ -95,7 +89,7 @@ def main(args):
     optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=1E-4)
     lf = lambda x: ((1 + math.cos(x * math.pi / args.epochs)) / 2) * (1 - args.lrf) + args.lrf  # cosine
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf) # Scheduler https://arxiv.org/pdf/1812.01187.pdf
-    # RMSprop
+    # Adam
     # optimizer = optim.Adam(pg, lr=args.lr, weight_decay=1E-5)
     # def lr_lambda(current_step: int):
     #     num_warmup_steps = 5
@@ -104,7 +98,14 @@ def main(args):
     #     return max(0.0, pow(0.99, int(current_step/2.4)))
 
     # 训练参数和记录存储
-    log_path = "./train_log/{}".format(datetime.datetime.now().strftime("%Y_%m%d-%H_%M_%S"))
+    print(args)
+    print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
+    if os.path.exists("./runs") is False:
+        os.makedirs("./runs")
+    log_path = "./runs/{}".format(datetime.datetime.now().strftime("%Y_%m%d-%H_%M_%S"))
+    if not os.path.exists(log_path):
+        os.mkdir(log_path)
+
     start_epoch = 0
     best_val_acc = 0
 
@@ -119,27 +120,23 @@ def main(args):
             scheduler.load_state_dict(checkpoint['scheduler'])
         else:
             assert True, "Fail to load checkpoint, check its path."
-    # last_epoch = -1 if start_epoch==0 else start_epoch
-    # scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda, last_epoch=last_epoch)
 
-    if not os.path.exists(log_path):
-        os.mkdir(log_path)
-    with open(log_path + "/arg_list.json", "w") as f:
+    tb_writer = SummaryWriter(log_dir=log_path)
+    with open(log_path + "/arg_list_epoch[{}].json".format(start_epoch), "w") as f:
         f.write(json.dumps(vars(args)))
     results_file = os.path.join(log_path, "err_list.txt")
-    print(optimizer.param_groups[0]["lr"])
 
     for epoch in range(start_epoch, args.epochs):
         # train
-        # train_loss, train_acc = train_one_epoch(model=model,
-        #                                         optimizer=optimizer,
-        #                                         data_loader=train_loader,
-        #                                         device=device,
-        #                                         epoch=epoch,
-        #                                         cls_num=cls_num,
-        #                                         info_path=results_file)
-        #
-        # scheduler.step()
+        train_loss, train_acc = train_one_epoch(model=model,
+                                                optimizer=optimizer,
+                                                data_loader=train_loader,
+                                                device=device,
+                                                epoch=epoch,
+                                                cls_num=cls_num,
+                                                info_path=results_file)
+
+        scheduler.step()
 
         # validate
         val_loss, val_acc = evaluate(model=model,
@@ -173,18 +170,18 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_classes', type=int, default=4)
-    parser.add_argument('--epochs', type=int, default=1)
+    parser.add_argument('--epochs', type=int, default=30)
     parser.add_argument('--batch-size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--lrf', type=float, default=0.01)
 
     # 数据集所在根目录
-    parser.add_argument('--data-path', type=str, default="test_dataset")
+    parser.add_argument('--data-path', type=str, default="datasets")
 
     # load model weights
-    parser.add_argument('--weights', type=str, default='best_weight.pth', help='initial weights path')
-    parser.add_argument('--resume', type=str, default='', help='checkpoint path')
-    parser.add_argument('--freeze-layers', type=bool, default=False)
+    parser.add_argument('--weights', type=str, default='', help='initial weights path')
+    parser.add_argument('--resume', type=str, default='runs/2022_0518-08_20_04/checkpoint.pth', help='checkpoint path')
+    parser.add_argument('--freeze-layers', type=bool, default=True)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
 
     opt = parser.parse_args()

@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
-def read_split_data(root: str, val_rate: float = 0.5):
+def read_split_data(root: str, val_rate: float = 0.2):
     random.seed(0)  # 保证随机结果可复现
     assert os.path.exists(root), "dataset root: {} does not exist.".format(root)
 
@@ -149,7 +149,10 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, cls_num, info_
         pred_classes = torch.max(pred, dim=1)[1]
         accu_num += torch.eq(pred_classes, labels.to(device)).sum()
 
-        estimator.add(pred_classes.cpu().numpy().tolist(), pred.cpu().numpy().tolist(), labels.cpu().numpy().tolist(), names)
+        estimator.add(pred_classes.cpu().numpy().tolist(),
+                      pred.cpu().detach().numpy().tolist(),
+                      labels.cpu().numpy().tolist(),
+                      names)
 
         loss = loss_function(pred, labels.to(device))
         loss.backward()
