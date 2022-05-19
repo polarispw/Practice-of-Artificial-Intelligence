@@ -9,8 +9,9 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
+from torchvision.transforms import autoaugment
 
-from model import efficientnetv2_m as create_model
+from model import efficientnetv2_s as create_model
 from my_dataset import MyDataSet
 from utils import read_split_data, train_one_epoch, evaluate
 
@@ -23,11 +24,16 @@ def main(args):
     img_size = {"s": [300, 384],  # train_size, val_size
                 "m": [384, 480],
                 "l": [384, 480]}
-    num_model = "m"
+    num_model = "s"
 
     data_transform = {
         "train": transforms.Compose([transforms.RandomResizedCrop(img_size[num_model][0]),
-                                     transforms.RandomHorizontalFlip(),
+                                     transforms.RandomChoice([
+                                         transforms.RandomHorizontalFlip(),
+                                         transforms.RandomVerticalFlip()]),
+                                     transforms.RandomRotation(degrees=45),
+                                     transforms.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.1, hue=0.1),
+                                     # autoaugment.TrivialAugmentWide(),
                                      transforms.ToTensor(),
                                      transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
                                      ]),
@@ -188,7 +194,7 @@ if __name__ == '__main__':
 
     # load model weights
     parser.add_argument('--weights', type=str, default='', help='initial weights path')
-    parser.add_argument('--resume', type=str, default='runs/2022_0518-13_17_34/checkpoint.pth', help='checkpoint path')
+    parser.add_argument('--resume', type=str, default='', help='checkpoint path')
     parser.add_argument('--freeze-layers', type=bool, default=True)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
 
