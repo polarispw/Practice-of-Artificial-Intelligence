@@ -10,6 +10,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 from torchvision.transforms import autoaugment
+from torch.utils.data.sampler import WeightedRandomSampler
 
 from model import efficientnetv2_s as create_model
 from my_dataset import MyDataSet
@@ -29,14 +30,13 @@ def main(args):
     data_transform = {
         "train": transforms.Compose([transforms.RandomResizedCrop(img_size[num_model][0]),
                                      transforms.RandomChoice([
-                                         transforms.RandomHorizontalFlip(),
-                                         transforms.RandomVerticalFlip()]),
-                                     transforms.RandomRotation(degrees=45),
-                                     transforms.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.1, hue=0.1),
+                                         transforms.RandomHorizontalFlip(p=0.2),
+                                         transforms.RandomVerticalFlip(p=0.2),
+                                         transforms.RandomRotation(degrees=45)]),
+                                     transforms.ColorJitter(brightness=0.05, contrast=0.05, saturation=0.05, hue=0.05),
                                      # autoaugment.TrivialAugmentWide(),
                                      transforms.ToTensor(),
-                                     transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
-                                     ]),
+                                     transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])]),
         "val": transforms.Compose([transforms.Resize(img_size[num_model][1]),
                                    transforms.CenterCrop(img_size[num_model][1]),
                                    transforms.ToTensor(),
@@ -52,11 +52,18 @@ def main(args):
                             images_class=val_images_label,
                             transform=data_transform["val"])
 
+    weights = torch.tensor(cls_num, dtype=torch.float32).to(device)
+    weights = weights / weights.sum()
+    weights = 1.0 / weights
+    class_weights = weights / weights.sum()
+    weight_list = [class_weights[i] for i in train_images_label]
+    weighted_sampler = WeightedRandomSampler(weights=weight_list, num_samples=len(train_images_path))
+
     batch_size = args.batch_size
     nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=batch_size,
-                                               shuffle=True,
+                                               sampler=weighted_sampler,
                                                pin_memory=True,
                                                num_workers=0,
                                                collate_fn=train_dataset.collate_fn)
@@ -70,7 +77,6 @@ def main(args):
 
     # 预训练权重
     model = create_model(num_classes=args.num_classes).to(device)
-
     if args.weights != "" and args.resume == "":
         if os.path.exists(args.weights):
             weights_dict = torch.load(args.weights, map_location=device)
@@ -98,15 +104,18 @@ def main(args):
         optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=1E-4)
     else:
         # Adam
-        optimizer = optim.Adam(pg, lr=args.lr, weight_decay=1E-5)
+        optimizer = optim.Adam(pg, lr=args.lr, weight_decay=1E-6)
 
     def lr_lambda(current_step: int):
-        num_warmup_steps = 5 if "warmup" in args.scheduler else -1
+        num_warmup_steps = 2 if "warmup" in args.scheduler else -1
         if current_step < num_warmup_steps:
             return float(current_step) / float(max(1, num_warmup_steps))
         if "cosine" in args.scheduler:
             return ((1 + math.cos(current_step * math.pi / args.epochs)) / 2) * (1 - args.lrf) + args.lrf
-        return max(1E-3, pow(0.5, int(current_step/1)))
+        elif "steps" in args.scheduler:
+            lrf_step = [1, 0.2, 0.02, 0.002, 0.0005]
+            return lrf_step[int(current_step / 6)]
+        return max(1E-3, pow(0.88, int(current_step/1)))
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)  # Scheduler https://arxiv.org/pdf/1812.01187.pdf
 
     # 训练参数和记录存储
@@ -127,7 +136,8 @@ def main(args):
             start_epoch = checkpoint['epoch']
             model.load_state_dict(checkpoint['model'])
             optimizer.load_state_dict(checkpoint['optimizer'])
-            scheduler.load_state_dict(checkpoint['scheduler'])
+            if 'reset' not in args.scheduler:
+                scheduler.load_state_dict(checkpoint['scheduler'])
         else:
             assert True, "Fail to load checkpoint, check its path."
 
@@ -145,7 +155,7 @@ def main(args):
                                                 data_loader=train_loader,
                                                 device=device,
                                                 epoch=epoch,
-                                                cls_num=cls_num,
+                                                loss_f=torch.tensor([1, 1, 1, 1], dtype=torch.float32).to(device),
                                                 info_path=results_file)
 
         scheduler.step()
@@ -155,7 +165,7 @@ def main(args):
                                      data_loader=val_loader,
                                      device=device,
                                      epoch=epoch,
-                                     cls_num=cls_num,
+                                     loss_f=torch.tensor([1, 1, 1, 1], dtype=torch.float32).to(device),
                                      info_path=results_file)
 
         tags = ["train_loss", "train_acc", "val_loss", "val_acc", "learning_rate"]
@@ -173,7 +183,7 @@ def main(args):
             'optimizer': optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
             }
-        torch.save(checkpoint, log_path + f"/checkpoint_from[{start_epoch}].pth")
+        torch.save(checkpoint, log_path + f"/checkpoint_from_epoch[{start_epoch}].pth")
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
@@ -182,20 +192,21 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_classes', type=int, default=4)
-    parser.add_argument('--epochs', type=int, default=30)
-    parser.add_argument('--batch-size', type=int, default=8)
-    parser.add_argument('--lr', type=float, default=0.01)
+    parser.add_argument('--epochs', type=int, default=20)
+    parser.add_argument('--batch-size', type=int, default=16)
+    parser.add_argument('--lr', type=float, default=5E-4)
     parser.add_argument('--lrf', type=float, default=1E-3)
     parser.add_argument('--optimizer', type=str, default='Adam', help='choose from SGD and Adam')
-    parser.add_argument('--scheduler', type=str, default='cosine warmup', help='write your lr schedule keywords')
+    parser.add_argument('--scheduler', type=str, default='warmup', help='write your lr schedule keywords')
+    parser.add_argument('--augmentation', type=str, default='trivialaugment', help='interpretation')
 
     # 数据集所在根目录
     parser.add_argument('--data-path', type=str, default="datasets")
 
     # load model weights
-    parser.add_argument('--weights', type=str, default='', help='initial weights path')
+    parser.add_argument('--weights', type=str, default='weights/best_weight(s_model).pth', help='initial weights path')
     parser.add_argument('--resume', type=str, default='', help='checkpoint path')
-    parser.add_argument('--freeze-layers', type=bool, default=True)
+    parser.add_argument('--freeze-layers', type=bool, default=False)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
 
     opt = parser.parse_args()

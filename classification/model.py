@@ -238,7 +238,7 @@ class EfficientNetV2(nn.Module):
     def __init__(self,
                  model_cnf: list,
                  num_classes: int = 1000,
-                 num_features: int = 1280,
+                 num_features: int = 2560,
                  dropout_rate: float = 0.2,
                  drop_connect_rate: float = 0.2):
         super(EfficientNetV2, self).__init__()

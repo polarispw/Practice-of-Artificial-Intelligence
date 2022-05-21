@@ -39,9 +39,9 @@ class MyDataSet(Dataset):
         img = cv2.imread(self.images_path[item])
         img = pre_process(img)
         label = self.images_class[item]
-
         if self.transform is not None:
             img = self.transform(img)
+
         return img, label, self.images_path[item]
 
     @staticmethod
