@@ -329,7 +329,7 @@ def efficientnetv2_s(num_classes: int = 1000):
 
     model = EfficientNetV2(model_cnf=model_config,
                            num_classes=num_classes,
-                           dropout_rate=0.2)
+                           dropout_rate=0.1)
     return model
 
 

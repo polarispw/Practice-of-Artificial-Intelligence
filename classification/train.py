@@ -20,7 +20,7 @@ from utils import read_split_data, train_one_epoch, evaluate
 def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
-    train_images_path, train_images_label, val_images_path, val_images_label, cls_num = read_split_data(args.data_path)
+    train_images_path, train_images_label, val_images_path, val_images_label, cls_num = read_split_data(args.data_path, test_datasets="datasets_test")
 
     img_size = {"s": [300, 384],  # train_size, val_size
                 "m": [384, 480],
@@ -29,11 +29,11 @@ def main(args):
 
     data_transform = {
         "train": transforms.Compose([transforms.RandomResizedCrop(img_size[num_model][0]),
-                                     transforms.RandomChoice([
-                                         transforms.RandomHorizontalFlip(p=0.2),
-                                         transforms.RandomVerticalFlip(p=0.2),
-                                         transforms.RandomRotation(degrees=45)]),
-                                     transforms.ColorJitter(brightness=0.05, contrast=0.05, saturation=0.05, hue=0.05),
+                                     # transforms.RandomChoice([
+                                     #     transforms.RandomHorizontalFlip(p=0.2),
+                                     #     transforms.RandomVerticalFlip(p=0.2),
+                                     #     transforms.RandomRotation(degrees=45)]),
+                                     # transforms.ColorJitter(brightness=0.05, contrast=0.05, saturation=0.05, hue=0.05),
                                      # autoaugment.TrivialAugmentWide(),
                                      transforms.ToTensor(),
                                      transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])]),
@@ -63,7 +63,8 @@ def main(args):
     nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=batch_size,
-                                               sampler=weighted_sampler,
+                                               # sampler=weighted_sampler,
+                                               shuffle=True,
                                                pin_memory=True,
                                                num_workers=0,
                                                collate_fn=train_dataset.collate_fn)
@@ -135,7 +136,8 @@ def main(args):
             best_val_acc = checkpoint['best_val_acc']
             start_epoch = checkpoint['epoch']
             model.load_state_dict(checkpoint['model'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
+            if 'reset' not in args.scheduler:
+                optimizer.load_state_dict(checkpoint['optimizer'])
             if 'reset' not in args.scheduler:
                 scheduler.load_state_dict(checkpoint['scheduler'])
         else:
@@ -155,7 +157,7 @@ def main(args):
                                                 data_loader=train_loader,
                                                 device=device,
                                                 epoch=epoch,
-                                                loss_f=torch.tensor([1, 1, 1, 1], dtype=torch.float32).to(device),
+                                                loss_f=torch.as_tensor(class_weights, dtype=torch.float32).to(device),
                                                 info_path=results_file)
 
         scheduler.step()
@@ -165,7 +167,7 @@ def main(args):
                                      data_loader=val_loader,
                                      device=device,
                                      epoch=epoch,
-                                     loss_f=torch.tensor([1, 1, 1, 1], dtype=torch.float32).to(device),
+                                     loss_f=torch.as_tensor(class_weights, dtype=torch.float32).to(device),
                                      info_path=results_file)
 
         tags = ["train_loss", "train_acc", "val_loss", "val_acc", "learning_rate"]
@@ -192,21 +194,21 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_classes', type=int, default=4)
-    parser.add_argument('--epochs', type=int, default=20)
+    parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--batch-size', type=int, default=16)
-    parser.add_argument('--lr', type=float, default=5E-4)
+    parser.add_argument('--lr', type=float, default=5E-5)
     parser.add_argument('--lrf', type=float, default=1E-3)
     parser.add_argument('--optimizer', type=str, default='Adam', help='choose from SGD and Adam')
     parser.add_argument('--scheduler', type=str, default='warmup', help='write your lr schedule keywords')
-    parser.add_argument('--augmentation', type=str, default='trivialaugment', help='interpretation')
+    parser.add_argument('--augmentation', type=str, default='', help='interpretation')
 
     # 数据集所在根目录
-    parser.add_argument('--data-path', type=str, default="datasets")
+    parser.add_argument('--data-path', type=str, default="datasets_1000")
 
     # load model weights
-    parser.add_argument('--weights', type=str, default='weights/best_weight(s_model).pth', help='initial weights path')
+    parser.add_argument('--weights', type=str, default='runs/2022_0521-10_54_50/best_weight.pth', help='initial weights path')
     parser.add_argument('--resume', type=str, default='', help='checkpoint path')
-    parser.add_argument('--freeze-layers', type=bool, default=False)
+    parser.add_argument('--freeze-layers', type=bool, default=True)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
 
     opt = parser.parse_args()

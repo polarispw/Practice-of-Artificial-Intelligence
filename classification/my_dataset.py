@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 from torch.utils.data import Dataset
 
-def scaleRadius(img,scale):
-    x = img[int(img.shape[0]/2),:,:].sum(1) # 图像中间1行的像素的3个通道求和。输出（width*1）
+def scaleRadius(img, scale):
+    x = img[int(img.shape[0]/2), :, :].sum(1) # 图像中间1行的像素的3个通道求和。输出（width*1）
     r = (x>x.mean()/10).sum()/2 # x均值/10的像素是为眼球，计算半径
     s = scale*1.0/r
     return cv2.resize(img,(0,0),fx=s,fy=s)

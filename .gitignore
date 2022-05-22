@@ -134,6 +134,5 @@ datasets/
 *.pt
 .idea/
 runs/
-test_dataset/
-train_log/
-test/
+datasets_1000/
+datasets_test/
