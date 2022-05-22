@@ -28,13 +28,15 @@ def main(args):
     num_model = "s"
 
     data_transform = {
-        "train": transforms.Compose([transforms.RandomResizedCrop(img_size[num_model][0]),
+        "train": transforms.Compose([# transforms.RandomResizedCrop(img_size[num_model][0]),
                                      # transforms.RandomChoice([
                                      #     transforms.RandomHorizontalFlip(p=0.2),
                                      #     transforms.RandomVerticalFlip(p=0.2),
                                      #     transforms.RandomRotation(degrees=45)]),
                                      # transforms.ColorJitter(brightness=0.05, contrast=0.05, saturation=0.05, hue=0.05),
                                      # autoaugment.TrivialAugmentWide(),
+                                     transforms.Resize(img_size[num_model][1]), #augmentation when classifying
+                                     transforms.CenterCrop(img_size[num_model][1]),
                                      transforms.ToTensor(),
                                      transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])]),
         "val": transforms.Compose([transforms.Resize(img_size[num_model][1]),
@@ -90,14 +92,15 @@ def main(args):
         raise ValueError("Set weights as '' if you wanna start from checkpoint")
 
     # 冻结权重
+    layers_to_train = "33"
     if args.freeze_layers:
         for name, para in model.named_parameters():
-            # 除head外，其他权重全部冻结
-            if "head" not in name:
+            if layers_to_train not in name:
                 para.requires_grad_(False)
             else:
-                print("training {}".format(name))
+                break
     pg = [p for p in model.parameters() if p.requires_grad]
+    print([l for l, p in model.named_parameters() if p.requires_grad is True])
 
     # 优化器调度器
     if args.optimizer == 'SGD':
@@ -116,7 +119,8 @@ def main(args):
         elif "steps" in args.scheduler:
             lrf_step = [1, 0.2, 0.02, 0.002, 0.0005]
             return lrf_step[int(current_step / 6)]
-        return max(1E-3, pow(0.88, int(current_step/1)))
+        return max(1E-4, pow(0.6, int(current_step/4)))
+
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)  # Scheduler https://arxiv.org/pdf/1812.01187.pdf
 
     # 训练参数和记录存储
@@ -194,12 +198,12 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_classes', type=int, default=4)
-    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--epochs', type=int, default=40)
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--lr', type=float, default=5E-5)
-    parser.add_argument('--lrf', type=float, default=1E-3)
+    parser.add_argument('--lrf', type=float, default=1E-4)
     parser.add_argument('--optimizer', type=str, default='Adam', help='choose from SGD and Adam')
-    parser.add_argument('--scheduler', type=str, default='warmup', help='write your lr schedule keywords')
+    parser.add_argument('--scheduler', type=str, default='', help='write your lr schedule keywords')
     parser.add_argument('--augmentation', type=str, default='', help='interpretation')
 
     # 数据集所在根目录
