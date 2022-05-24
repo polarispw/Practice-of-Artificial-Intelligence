@@ -106,23 +106,25 @@ class Estimate():
         self.label_list = []
         self.name_list = []
         self.err_name_list = []
+        self.prob_list = []
         self.num_in_classes = torch.zeros(num_classes)
         self.pre_in_classes = torch.zeros(num_classes)
         self.true_labels = torch.zeros(num_classes)
         self.precision = torch.zeros(num_classes)
         self.recall = torch.zeros(num_classes)
 
-    def add(self, pred_classes, labels, names):
+    def add(self, pred_classes, labels, names, prob):
         self.predict_list.extend(pred_classes)
         self.label_list.extend(labels)
         self.name_list.extend(names)
+        self.prob_list.extend(prob)
 
     def cal(self):
-        for x, y, n in zip(self.predict_list, self.label_list, self.name_list):
+        for x, y, n, p in zip(self.predict_list, self.label_list, self.name_list, self.prob_list):
             self.pre_in_classes[x] += 1
             self.num_in_classes[y] += 1
             if x != y:
-                self.err_name_list.append((n, y, x)) # [图片名, 原始标签, 错判标签]
+                self.err_name_list.append((n, y, x, p)) # [图片名, 原始标签, 错判标签]
             else:
                 self.true_labels[x] += 1
 
@@ -142,9 +144,9 @@ class Estimate():
                    f"err_name_list [图片名, 原始标签, 错判标签]:\n"
             err_list = ""
             for i in self.err_name_list:
-                name = i[0].split("/")
+                name = i[0].split("\\")
                 name = name[-2]+"/"+name[-1]
-                err_list += f"path: {name}    {i[1]}    {i[2]}\n"
+                err_list += f"path: {name}    {i[1]}    {i[2]}    {i[3]}\n"
 
             f.write(info + err_list + "\n")
 
@@ -168,7 +170,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, info_path, los
         pred_classes = torch.max(pred, dim=1)[1]
         accu_num += torch.eq(pred_classes, labels.to(device)).sum()
 
-        estimator.add(pred_classes.cpu().numpy().tolist(), labels.cpu().numpy().tolist(), names)
+        estimator.add(pred_classes.cpu().numpy().tolist(), labels.cpu().numpy().tolist(), names, pred.cpu().detach().numpy().tolist())
 
         loss = loss_function(pred, labels.to(device))
         loss.backward()
@@ -192,8 +194,10 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, info_path, los
 
 
 @torch.no_grad()
-def evaluate(model, data_loader, device, epoch, info_path, loss_f=None):
+def evaluate(model, data_loader, device, epoch, info_path, loss_f=None, model_bi=[]):
     model.eval()
+    for m in model_bi:
+        m.eval()
     estimator = Estimate(4)
 
     loss_function = torch.nn.CrossEntropyLoss(weight=loss_f)
@@ -208,9 +212,33 @@ def evaluate(model, data_loader, device, epoch, info_path, loss_f=None):
 
         pred = model(images.to(device))
         pred_classes = torch.max(pred, dim=1)[1]
+
+        prob = torch.softmax(pred, dim=1)
+        for i, p in enumerate(prob):
+            prob[i] = p/prob[i].sum()
+
+        prob_ = prob.clone()
+        for i, p in enumerate(pred_classes):
+            first_max = prob[i][p]
+            prob_[i][p] = 0
+            second_max, second_label = torch.max(prob_[i], dim=0)
+            if first_max-second_max < 0.25:
+                if (p == 0 and second_label == 1):
+                    p_ = model_bi[0](images[i].unsqueeze(0).to(device))
+                    c = torch.max(p_, dim=1)[1]
+                    pred_classes[i] = c
+                elif (p == 1 and second_label == 2) or (p == 2 and second_label == 1):
+                    p_ = model_bi[1](images[i].unsqueeze(0).to(device))
+                    c = torch.max(p_, dim=1)[1] + 1
+                    pred_classes[i] = c
+                elif (p == 3 and second_label == 2):
+                    p_ = model_bi[2](images[i].unsqueeze(0).to(device))
+                    c = torch.max(p_, dim=1)[1] + 2
+                    pred_classes[i] = c
+
         accu_num += torch.eq(pred_classes, labels.to(device)).sum()
 
-        estimator.add(pred_classes.cpu().numpy().tolist(), labels.cpu().numpy().tolist(), names)
+        estimator.add(pred_classes.cpu().numpy().tolist(), labels.cpu().numpy().tolist(), names, prob.cpu().detach().numpy().tolist())
 
         loss = loss_function(pred, labels.to(device))
         accu_loss += loss

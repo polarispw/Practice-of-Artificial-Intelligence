@@ -25,18 +25,19 @@ def main(args):
     img_size = {"s": [300, 384],  # train_size, val_size
                 "m": [384, 480],
                 "l": [384, 480]}
-    num_model = "s"
+    num_model = "m"
 
     data_transform = {
-        "train": transforms.Compose([# transforms.RandomResizedCrop(img_size[num_model][0]),
+        "train": transforms.Compose([
                                      # transforms.RandomChoice([
                                      #     transforms.RandomHorizontalFlip(p=0.2),
                                      #     transforms.RandomVerticalFlip(p=0.2),
                                      #     transforms.RandomRotation(degrees=45)]),
                                      # transforms.ColorJitter(brightness=0.05, contrast=0.05, saturation=0.05, hue=0.05),
                                      # autoaugment.TrivialAugmentWide(),
-                                     transforms.Resize(img_size[num_model][1]), #augmentation when classifying
-                                     transforms.CenterCrop(img_size[num_model][1]),
+                                     # transforms.RandomResizedCrop(img_size[num_model][0]),
+                                     transforms.CenterCrop(img_size[num_model][0]), #augmentation when classifying
+                                     transforms.Resize(img_size[num_model][0]),
                                      transforms.ToTensor(),
                                      transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])]),
         "val": transforms.Compose([transforms.Resize(img_size[num_model][1]),
@@ -91,8 +92,22 @@ def main(args):
     elif args.weights != "" and args.resume != "":
         raise ValueError("Set weights as '' if you wanna start from checkpoint")
 
+    model01 = create_model(num_classes=2).to(device)
+    model12 = create_model(num_classes=2).to(device)
+    model23 = create_model(num_classes=2).to(device)
+    model_bi = [model01, model12, model23]
+    weights_list = ["weights/best_weight_01.pth", "weights/best_weight_12.pth", "weights/best_weight_23.pth"]
+    for i, path in enumerate(weights_list):
+        if os.path.exists(path):
+            weights_dict = torch.load(path, map_location=device)
+            load_weights_dict = {k: v for k, v in weights_dict.items()
+                                 if model_bi[i].state_dict()[k].numel() == v.numel()}
+            print(model_bi[i].load_state_dict(load_weights_dict, strict=False))
+        else:
+            raise FileNotFoundError("No weights file: {}".format(model_bi[i]))
+
     # 冻结权重
-    layers_to_train = "33"
+    layers_to_train = "39"
     if args.freeze_layers:
         for name, para in model.named_parameters():
             if layers_to_train not in name:
@@ -156,15 +171,15 @@ def main(args):
 
     for epoch in range(start_epoch, args.epochs):
         # train
-        train_loss, train_acc = train_one_epoch(model=model,
-                                                optimizer=optimizer,
-                                                data_loader=train_loader,
-                                                device=device,
-                                                epoch=epoch,
-                                                loss_f=torch.as_tensor(class_weights, dtype=torch.float32).to(device),
-                                                info_path=results_file)
-
-        scheduler.step()
+        # train_loss, train_acc = train_one_epoch(model=model,
+        #                                         optimizer=optimizer,
+        #                                         data_loader=train_loader,
+        #                                         device=device,
+        #                                         epoch=epoch,
+        #                                         loss_f=torch.as_tensor(class_weights, dtype=torch.float32).to(device),
+        #                                         info_path=results_file)
+        #
+        # scheduler.step()
 
         # validate
         val_loss, val_acc = evaluate(model=model,
@@ -172,6 +187,7 @@ def main(args):
                                      device=device,
                                      epoch=epoch,
                                      loss_f=torch.as_tensor(class_weights, dtype=torch.float32).to(device),
+                                     model_bi=[model01, model12, model23],
                                      info_path=results_file)
 
         tags = ["train_loss", "train_acc", "val_loss", "val_acc", "learning_rate"]
@@ -198,10 +214,10 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_classes', type=int, default=4)
-    parser.add_argument('--epochs', type=int, default=40)
+    parser.add_argument('--epochs', type=int, default=1)
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--lr', type=float, default=5E-5)
-    parser.add_argument('--lrf', type=float, default=1E-4)
+    parser.add_argument('--lrf', type=float, default=1E-3)
     parser.add_argument('--optimizer', type=str, default='Adam', help='choose from SGD and Adam')
     parser.add_argument('--scheduler', type=str, default='', help='write your lr schedule keywords')
     parser.add_argument('--augmentation', type=str, default='', help='interpretation')
@@ -210,7 +226,7 @@ if __name__ == '__main__':
     parser.add_argument('--data-path', type=str, default="datasets_1000")
 
     # load model weights
-    parser.add_argument('--weights', type=str, default='runs/2022_0521-10_54_50/best_weight.pth', help='initial weights path')
+    parser.add_argument('--weights', type=str, default='weights/best_weight_0523-0135.pth', help='initial weights path')
     parser.add_argument('--resume', type=str, default='', help='checkpoint path')
     parser.add_argument('--freeze-layers', type=bool, default=True)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
