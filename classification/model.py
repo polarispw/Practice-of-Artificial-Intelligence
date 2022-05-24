@@ -4,7 +4,25 @@ from typing import Callable, Optional
 
 import torch.nn as nn
 import torch
+from torch.nn import functional as F
 from torch import Tensor
+
+
+def gem(x, p, eps=1e-6):
+    return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1./p)
+
+
+class GeM(nn.Module):
+    def __init__(self, p=3, eps=1e-6):
+        super(GeM, self).__init__()
+        self.p = nn.Parameter(torch.ones(1)*p)
+        self.eps = eps
+
+    def forward(self, x):
+        return gem(x, p=self.p, eps=self.eps)
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(' + 'p=' + '{:.4f}'.format(self.p.data.tolist()[0]) + ', ' + 'eps=' + str(self.eps) + ')'
 
 
 def drop_path(x, drop_prob: float = 0., training: bool = False):
@@ -283,6 +301,8 @@ class EfficientNetV2(nn.Module):
                                                norm_layer=norm_layer)})  # 激活函数默认是SiLU
 
         head.update({"avgpool": nn.AdaptiveAvgPool2d(1)})
+
+        # head.update({"avgpool": GeM()})
         head.update({"flatten": nn.Flatten()})
 
         if dropout_rate > 0:

@@ -31,7 +31,20 @@ def main():
         class_indict = json.load(f)
 
     # create model
-    model = create_model(num_classes=2).to(device)
+    model = create_model(num_classes=4).to(device)
+    model01 = create_model(num_classes=2).to(device)
+    model12 = create_model(num_classes=2).to(device)
+    model23 = create_model(num_classes=2).to(device)
+    model_bi = [model01, model12, model23]
+    weights_list = ["best_weight_01.pth", "best_weight_12.pth", "best_weight_23.pth"]
+    for i, path in enumerate(weights_list):
+        if os.path.exists(path):
+            weights_dict = torch.load(path, map_location=device)
+            load_weights_dict = {k: v for k, v in weights_dict.items()
+                                 if model_bi[i].state_dict()[k].numel() == v.numel()}
+            print(model_bi[i].load_state_dict(load_weights_dict, strict=False))
+        else:
+            raise FileNotFoundError("No weights file: {}".format(model_bi[i]))
     # load model weights
     model_weight_path = "best_acc.pth"
     model.load_state_dict(torch.load(model_weight_path, map_location=device))
@@ -72,6 +85,28 @@ def main():
             output = torch.squeeze(model(img.to(device))).cpu()
             predict = torch.softmax(output, dim=0)
             predict_cls = torch.argmax(predict).item()
+
+            prob = predict/predict.sum()
+
+            prob_ = prob.clone()
+            first_max = prob[predict_cls]
+            prob_[predict_cls] = 0
+            second_max, second_label = torch.max(prob_, dim=0)
+
+            if first_max - second_max < 0.25:
+                if (predict_cls == 0 and second_label == 1):
+                    p_ = model_bi[0](img.to(device))
+                    c = torch.max(p_, dim=1)[1]
+                    predict_cls = c
+                elif (predict_cls == 1 and second_label == 2) or (predict_cls == 2 and second_label == 1):
+                    p_ = model_bi[1](img.to(device))
+                    c = torch.max(p_, dim=1)[1] + 1
+                    predict_cls = c
+                elif (predict_cls == 3 and second_label == 2):
+                    p_ = model_bi[2](img.to(device))
+                    c = torch.max(p_, dim=1)[1] + 2
+                    predict_cls = c
+
         res.append([str(i), int(predict_cls)])
 
     np.save("./pre.npy", res)
