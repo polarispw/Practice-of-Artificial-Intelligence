@@ -57,16 +57,6 @@ def to_tensor(x, **kwargs):
 
 
 def get_preprocessing(preprocessing_fn):
-    """Construct preprocessing transform
-
-    Args:
-        preprocessing_fn (callbale): data normalization function
-            (can be specific for each pretrained neural network)
-    Return:
-        transform: albumentations.Compose
-
-    """
-
     _transform = [
         albu.Lambda(image=preprocessing_fn),
         albu.Lambda(image=to_tensor, mask=to_tensor),
@@ -96,4 +86,8 @@ if __name__=='__main__':
     # same image with different random transforms
     for i in range(3):
         image, mask = augmented_dataset[1]
-        visualize(image=image, mask=mask.squeeze(-1))
+        visualize(
+            image=image,
+            mask1=mask[:, :, 0],
+            mask2=mask[:, :, 1],
+            mask3=mask[:, :, 2], )

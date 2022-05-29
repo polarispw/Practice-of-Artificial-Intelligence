@@ -45,7 +45,7 @@ class Dataset(BaseDataset):
         return image, mask
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.idi)
 
 if __name__=='__main__':
 

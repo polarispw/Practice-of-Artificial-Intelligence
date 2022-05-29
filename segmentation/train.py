@@ -2,43 +2,48 @@ import torch
 import argparse
 import numpy as np
 import segmentation_models_pytorch as smp
+from data_process import get_training_augmentation
+from data_process import get_validation_augmentation
+from data_process import get_preprocessing
 from my_dataset import Dataset
+
 
 from torch.utils.data import DataLoader
 
 
-def main():
-    ENCODER = 'se_resnext50_32x4d'
+def main(args):
+    ENCODER = 'resnet34'
     ENCODER_WEIGHTS = 'imagenet'
-    CLASSES = ['1', '2', '3']
     ACTIVATION = 'sigmoid'  # could be None for logits or 'softmax2d' for multiclass segmentation
     DEVICE = 'cuda'
     x_train_dir = "Heart Data/Image_DCM/png/Image/01"
     y_train_dir = "Heart Data/Image_DCM/png/Label/01"
+    x_valid_dir = "Heart Data/Image_DCM/png/Image/02"
+    y_valid_dir = "Heart Data/Image_DCM/png/Label/02"
 
     # create segmentation model with pretrained encoder
     model = smp.UnetPlusPlus(
         encoder_name=ENCODER,
-        encoder_weights=ENCODER_WEIGHTS,
-        classes=len(CLASSES),
+        encoder_weights=None,
+        in_channels=1,
+        classes=3,
         activation=ACTIVATION,
     )
 
-    preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
+    # preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
+
     train_dataset = Dataset(
         x_train_dir,
         y_train_dir,
         augmentation=get_training_augmentation(),
-        preprocessing=get_preprocessing(preprocessing_fn),
-        classes=CLASSES,
+        # preprocessing=get_preprocessing(preprocessing_fn),
     )
 
     valid_dataset = Dataset(
         x_valid_dir,
         y_valid_dir,
         augmentation=get_validation_augmentation(),
-        preprocessing=get_preprocessing(preprocessing_fn),
-        classes=CLASSES,
+        # preprocessing=get_preprocessing(preprocessing_fn),
     )
 
     train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=0)
@@ -54,7 +59,6 @@ def main():
     ])
 
     # create epoch runners
-    # it is a simple loop of iterating over dataloader`s samples
     train_epoch = smp.utils.train.TrainEpoch(
         model,
         loss=loss,
@@ -106,7 +110,7 @@ if __name__ == '__main__':
     parser.add_argument('--data-path', type=str, default="datasets_1000")
 
     # load model weights
-    parser.add_argument('--weights', type=str, default='weights/best_weight_0523-0135.pth', help='initial weights path')
+    parser.add_argument('--weights', type=str, default='', help='initial weights path')
     parser.add_argument('--resume', type=str, default='', help='checkpoint path')
     parser.add_argument('--freeze-layers', type=bool, default=True)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
