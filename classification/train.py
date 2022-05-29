@@ -29,13 +29,13 @@ def main(args):
 
     data_transform = {
         "train": transforms.Compose([
-                                     # transforms.RandomChoice([
-                                     #     transforms.RandomHorizontalFlip(p=0.2),
-                                     #     transforms.RandomVerticalFlip(p=0.2),
-                                     #     transforms.RandomRotation(degrees=45)]),
-                                     # transforms.ColorJitter(brightness=0.05, contrast=0.05, saturation=0.05, hue=0.05),
-                                     # autoaugment.TrivialAugmentWide(),
-                                     # transforms.RandomResizedCrop(img_size[num_model][0]),
+                                     transforms.RandomChoice([
+                                         transforms.RandomHorizontalFlip(p=0.2),
+                                         transforms.RandomVerticalFlip(p=0.2),
+                                         transforms.RandomRotation(degrees=45)]),
+                                     transforms.ColorJitter(brightness=0.05, contrast=0.05, saturation=0.05, hue=0.05),
+                                     autoaugment.TrivialAugmentWide(),
+                                     transforms.RandomResizedCrop(img_size[num_model][0]),
                                      transforms.CenterCrop(img_size[num_model][0]), #augmentation when classifying
                                      transforms.Resize(img_size[num_model][0]),
                                      transforms.ToTensor(),

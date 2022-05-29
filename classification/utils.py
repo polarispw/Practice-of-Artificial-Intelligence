@@ -62,21 +62,6 @@ def read_split_data(root: str, val_rate: float = 0.2, test_datasets: str = ""):
                 train_images_path.append(img_path)
                 train_images_label.append(image_class)
 
-    # if test_datasets != "":
-    #     for cla in classes:
-    #         cla_path = os.path.join(test_datasets, cla)
-    #         # 遍历获取supported支持的所有文件路径
-    #         images = [os.path.join(test_datasets, cla, i) for i in os.listdir(cla_path)
-    #                   if os.path.splitext(i)[-1] in supported]
-    #         # 获取该类别对应的索引
-    #         image_class = class_indices[cla]
-    #         # 记录该类别的样本数量
-    #         # every_class_num.append(len(images))
-    #
-    #         for img_path in images:
-    #             val_images_path.append(img_path)
-    #             val_images_label.append(image_class)
-
     print("{} images were found in the dataset.".format(sum(every_class_num)))
     print("{} images for training.".format(len(train_images_path)))
     print("{} images for validation.".format(len(val_images_path)))

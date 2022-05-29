@@ -46,7 +46,7 @@ def main():
         else:
             raise FileNotFoundError("No weights file: {}".format(model_bi[i]))
     # load model weights
-    model_weight_path = "best_acc.pth"
+    model_weight_path = "best_weight_0523-0135.pth"
     model.load_state_dict(torch.load(model_weight_path, map_location=device))
     model.eval()
 
