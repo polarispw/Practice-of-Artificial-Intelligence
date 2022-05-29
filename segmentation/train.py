@@ -2,51 +2,42 @@ import torch
 import argparse
 import numpy as np
 import segmentation_models_pytorch as smp
-from data_process import get_training_augmentation
-from data_process import get_validation_augmentation
-from data_process import get_preprocessing
-from my_dataset import Dataset
-
+from data_process import get_training_augmentation, get_validation_augmentation, get_preprocessing
+from my_dataset import Dataset, generate_path_list
 
 from torch.utils.data import DataLoader
 
 
 def main(args):
-    ENCODER = 'resnet34'
-    ENCODER_WEIGHTS = 'imagenet'
-    ACTIVATION = 'sigmoid'  # could be None for logits or 'softmax2d' for multiclass segmentation
-    DEVICE = 'cuda'
-    x_train_dir = "Heart Data/Image_DCM/png/Image/01"
-    y_train_dir = "Heart Data/Image_DCM/png/Label/01"
-    x_valid_dir = "Heart Data/Image_DCM/png/Image/02"
-    y_valid_dir = "Heart Data/Image_DCM/png/Label/02"
+
+    train_img_list, train_lab_list, valid_img_list, valid_lab_list = generate_path_list(args.data_path, args.mode)
 
     # create segmentation model with pretrained encoder
+    encoder = args.encoder
     model = smp.UnetPlusPlus(
-        encoder_name=ENCODER,
+        encoder_name=encoder,
         encoder_weights=None,
-        in_channels=1,
         classes=3,
-        activation=ACTIVATION,
+        activation='sigmoid',  # could be None for logits or 'softmax2d' for multiclass segmentation
     )
 
-    # preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
+    preprocessing_fn = smp.encoders.get_preprocessing_fn(encoder)
 
     train_dataset = Dataset(
-        x_train_dir,
-        y_train_dir,
+        train_img_list,
+        train_lab_list,
         augmentation=get_training_augmentation(),
-        # preprocessing=get_preprocessing(preprocessing_fn),
+        preprocessing=get_preprocessing(preprocessing_fn),
     )
 
     valid_dataset = Dataset(
-        x_valid_dir,
-        y_valid_dir,
+        valid_img_list,
+        valid_lab_list,
         augmentation=get_validation_augmentation(),
-        # preprocessing=get_preprocessing(preprocessing_fn),
+        preprocessing=get_preprocessing(preprocessing_fn),
     )
 
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=0)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
     valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False, num_workers=0)
 
     loss = smp.utils.losses.DiceLoss()
@@ -55,7 +46,7 @@ def main(args):
     ]
 
     optimizer = torch.optim.Adam([
-        dict(params=model.parameters(), lr=0.0001),
+        dict(params=model.parameters(), lr=args.lr),
     ])
 
     # create epoch runners
@@ -64,7 +55,7 @@ def main(args):
         loss=loss,
         metrics=metrics,
         optimizer=optimizer,
-        device=DEVICE,
+        device=args.device,
         verbose=True,
     )
 
@@ -72,14 +63,13 @@ def main(args):
         model,
         loss=loss,
         metrics=metrics,
-        device=DEVICE,
+        device=args.device,
         verbose=True,
     )
-    # train model for 40 epochs
 
     max_score = 0
 
-    for i in range(0, 40):
+    for i in range(args.epochs):
 
         print('\nEpoch: {}'.format(i))
         train_logs = train_epoch.run(train_loader)
@@ -97,21 +87,18 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num_classes', type=int, default=4)
-    parser.add_argument('--epochs', type=int, default=1)
-    parser.add_argument('--batch-size', type=int, default=16)
-    parser.add_argument('--lr', type=float, default=5E-5)
-    parser.add_argument('--lrf', type=float, default=1E-3)
+    parser.add_argument('--mode', type=str, default="seg", help='seg or cls')
+    parser.add_argument('--epochs', type=int, default=40)
+    parser.add_argument('--batch-size', type=int, default=8)
+    parser.add_argument('--lr', type=float, default=5E-4)
     parser.add_argument('--optimizer', type=str, default='Adam', help='choose from SGD and Adam')
     parser.add_argument('--scheduler', type=str, default='', help='write your lr schedule keywords')
-    parser.add_argument('--augmentation', type=str, default='', help='interpretation')
 
     # 数据集所在根目录
-    parser.add_argument('--data-path', type=str, default="datasets_1000")
+    parser.add_argument('--data-path', type=str, default="Heart Data")
 
     # load model weights
-    parser.add_argument('--weights', type=str, default='', help='initial weights path')
-    parser.add_argument('--resume', type=str, default='', help='checkpoint path')
+    parser.add_argument('--encoder', type=str, default='resnet18', help='encoder backbone')
     parser.add_argument('--freeze-layers', type=bool, default=True)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
 
