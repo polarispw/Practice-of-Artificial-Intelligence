@@ -9,8 +9,7 @@ def get_training_augmentation():
 
         albu.ShiftScaleRotate(scale_limit=0.5, rotate_limit=0, shift_limit=0.1, p=1, border_mode=0),
 
-        albu.PadIfNeeded(min_height=320, min_width=320, always_apply=True, border_mode=0),
-        albu.RandomCrop(height=320, width=320, always_apply=True),
+        albu.Resize(320, 320),
 
         albu.IAAAdditiveGaussianNoise(p=0.2),
         albu.IAAPerspective(p=0.5),
@@ -47,7 +46,7 @@ def get_training_augmentation():
 def get_validation_augmentation():
     """Add paddings to make image shape divisible by 32"""
     test_transform = [
-        albu.PadIfNeeded(384, 480)
+        albu.Resize(384, 480)
     ]
     return albu.Compose(test_transform)
 
@@ -64,8 +63,9 @@ def get_preprocessing(preprocessing_fn):
     return albu.Compose(_transform)
 
 if __name__=='__main__':
-    x_train_dir = "Heart Data/Image_DCM/png/Image/01"
-    y_train_dir = "Heart Data/Image_DCM/png/Label/01"
+
+    x_train_dir = ["Heart Data/Image_DCM/png/Image/01/image1.png"]
+    y_train_dir = ["Heart Data/Image_DCM/png/Label/01/label1.png"]
 
     augmented_dataset = Dataset(
         x_train_dir,
