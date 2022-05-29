@@ -69,21 +69,21 @@ def main(args):
 
     max_score = 0
 
-    for i in range(args.epochs):
+    for epoch in range(args.epochs):
 
-        print('\nEpoch: {}'.format(i))
+        print('\nEpoch: {}'.format(epoch))
         train_logs = train_epoch.run(train_loader)
         valid_logs = valid_epoch.run(valid_loader)
 
-        # do something (save model, change lr, etc.)
         if max_score < valid_logs['iou_score']:
             max_score = valid_logs['iou_score']
             torch.save(model, './best_model.pth')
             print('Model saved!')
 
-        if i == 25:
+        if epoch == 25:
             optimizer.param_groups[0]['lr'] = 1e-5
             print('Decrease decoder learning rate to 1e-5!')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
