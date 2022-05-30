@@ -1,33 +1,49 @@
 import os
+import random
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset as BaseDataset
 
-def generate_path_list(root="Heart Data", mode="seg"):
-    train_img_list, train_lab_list, valid_img_list, valid_lab_list = [], [], [], []
+
+def generate_path_list(root="Heart Data", mode="seg", val_rate=0.2):
+    random.seed(0)
     assert os.path.exists(root), f"File {root} does not exist"
+    train_img_list, train_lab_list, valid_img_list, valid_lab_list = [], [], [], []
 
     if mode == "seg":
         mid_name = os.listdir(root)
+        image_list = []
+        label_list = []
         for f in mid_name:
             img_path = os.path.join(root, f, "png", "Image")
             for i in os.listdir(img_path):
                 path = os.path.join(img_path, i)
                 temp = os.listdir(path)
-                for name in temp[0:-1]:
+                for name in temp:
                     name = [os.path.join(path, name)]
-                    train_img_list += name
-                valid_img_list += [os.path.join(path, temp[-1])]
+                    image_list += name
 
             lab_path = os.path.join(root, f, "png", "Label")
             for i in os.listdir(lab_path):
                 path = os.path.join(lab_path, i)
                 temp = os.listdir(path)
-                for name in temp[0:-1]:
+                for name in temp:
                     name = [os.path.join(path, name)]
-                    train_lab_list += name
-                valid_lab_list += [os.path.join(path, temp[-1])]
+                    label_list += name
+
+        val_path = random.sample(image_list, k=int(len(image_list) * val_rate))
+        for p in image_list:
+            if p in val_path:
+                valid_img_list.append(p)
+                valid_lab_list.append(p)
+            else:
+                train_img_list.append(p)
+                train_lab_list.append(p)
+
+    print("{} images were found in the dataset.".format(len(image_list)))
+    print("{} images for training.".format(len(train_img_list)))
+    print("{} images for validation.".format(len(valid_img_list)))
 
     return train_img_list, train_lab_list, valid_img_list, valid_lab_list
 

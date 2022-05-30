@@ -170,16 +170,16 @@ def main(args):
     results_file = os.path.join(log_path, "err_list.txt")
 
     for epoch in range(start_epoch, args.epochs):
-        # train
-        # train_loss, train_acc = train_one_epoch(model=model,
-        #                                         optimizer=optimizer,
-        #                                         data_loader=train_loader,
-        #                                         device=device,
-        #                                         epoch=epoch,
-        #                                         loss_f=torch.as_tensor(class_weights, dtype=torch.float32).to(device),
-        #                                         info_path=results_file)
-        #
-        # scheduler.step()
+        train
+        train_loss, train_acc = train_one_epoch(model=model,
+                                                optimizer=optimizer,
+                                                data_loader=train_loader,
+                                                device=device,
+                                                epoch=epoch,
+                                                loss_f=torch.as_tensor(class_weights, dtype=torch.float32).to(device),
+                                                info_path=results_file)
+
+        scheduler.step()
 
         # validate
         val_loss, val_acc = evaluate(model=model,

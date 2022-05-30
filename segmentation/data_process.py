@@ -11,13 +11,13 @@ def get_training_augmentation():
 
         albu.Resize(320, 320),
 
-        albu.IAAAdditiveGaussianNoise(p=0.2),
-        albu.IAAPerspective(p=0.5),
+        albu.GaussNoise(p=0.2),
+        albu.Perspective(p=0.5),
 
         albu.OneOf(
             [
                 albu.CLAHE(p=1),
-                albu.RandomBrightness(p=1),
+                albu.RandomBrightnessContrast(p=1),
                 albu.RandomGamma(p=1),
             ],
             p=0.9,
@@ -25,7 +25,7 @@ def get_training_augmentation():
 
         albu.OneOf(
             [
-                albu.IAASharpen(p=1),
+                albu.Sharpen(p=1),
                 albu.Blur(blur_limit=3, p=1),
                 albu.MotionBlur(blur_limit=3, p=1),
             ],
@@ -34,7 +34,7 @@ def get_training_augmentation():
 
         albu.OneOf(
             [
-                albu.RandomContrast(p=1),
+                albu.RandomBrightnessContrast(p=1),
                 albu.HueSaturationValue(p=1),
             ],
             p=0.9,
@@ -45,9 +45,7 @@ def get_training_augmentation():
 
 def get_validation_augmentation():
     """Add paddings to make image shape divisible by 32"""
-    test_transform = [
-        albu.Resize(384, 480)
-    ]
+    test_transform = [albu.Resize(384, 480)]
     return albu.Compose(test_transform)
 
 
@@ -83,11 +81,10 @@ if __name__=='__main__':
             plt.title(' '.join(name.split('_')).title())
             plt.imshow(image, cmap='gray')
         plt.show()
-    # same image with different random transforms
-    for i in range(3):
-        image, mask = augmented_dataset[1]
-        visualize(
-            image=image,
-            mask1=mask[:, :, 0],
-            mask2=mask[:, :, 1],
-            mask3=mask[:, :, 2], )
+
+    image, mask = augmented_dataset[0]
+    visualize(
+        image=image,
+        mask1=mask[:, :, 0],
+        mask2=mask[:, :, 1],
+        mask3=mask[:, :, 2], )
