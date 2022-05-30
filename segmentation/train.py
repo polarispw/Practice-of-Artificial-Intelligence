@@ -13,7 +13,9 @@ from utils import TrainEpoch, ValidEpoch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+
 def main(args):
+
     print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
     if os.path.exists("./runs") is False:
         os.makedirs("./runs")
@@ -98,7 +100,7 @@ def main(args):
 
         if max_score < valid_logs['iou_score']:
             max_score = valid_logs['iou_score']
-            torch.save(model, log_path)
+            torch.save(model, log_path + "/best_weight.pth")
             print('Model saved!')
 
         if epoch == 25:

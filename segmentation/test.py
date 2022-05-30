@@ -4,6 +4,7 @@ import numpy as np
 import segmentation_models_pytorch as smp
 from data_process import get_validation_augmentation, get_preprocessing
 from my_dataset import Dataset, generate_path_list
+from utils import ValidEpoch
 
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
@@ -22,7 +23,7 @@ def visualize(**images):
 
 
 def main(args):
-    best_model = torch.load('./best_model.pth')
+    best_model = torch.load(args.weight_path)
 
     encoder = args.encoder
     model = smp.UnetPlusPlus(
@@ -45,13 +46,13 @@ def main(args):
 
     test_dataloader = DataLoader(test_dataset)
 
-    loss = smp.utils.losses.DiceLoss()
+    loss = smp.losses.DiceLoss('multilabel')
     metrics = [
         smp.utils.metrics.IoU(threshold=0.5),
     ]
 
     # evaluate model on test set
-    test_epoch = smp.utils.train.ValidEpoch(
+    test_epoch = ValidEpoch(
         model=model,
         loss=loss,
         metrics=metrics,
@@ -92,6 +93,7 @@ if __name__ == '__main__':
 
     # 数据集所在根目录
     parser.add_argument('--data-path', type=str, default="Heart Data")
+    parser.add_argument('--weight-path', type=str, default='runs/2022_0530-12_38_07/best_weight.pth')
 
     # load model weights
     parser.add_argument('--encoder', type=str, default='resnet18', help='encoder backbone')
