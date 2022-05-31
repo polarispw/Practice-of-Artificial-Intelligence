@@ -33,13 +33,13 @@ def generate_path_list(root="Heart Data", mode="seg", val_rate=0.2):
                     label_list += name
 
         val_path = random.sample(image_list, k=int(len(image_list) * val_rate))
-        for p in image_list:
+        for p, i in zip(image_list, label_list):
             if p in val_path:
                 valid_img_list.append(p)
-                valid_lab_list.append(p)
+                valid_lab_list.append(i)
             else:
                 train_img_list.append(p)
-                train_lab_list.append(p)
+                train_lab_list.append(i)
 
     print("{} images were found in the dataset.".format(len(image_list)))
     print("{} images for training.".format(len(train_img_list)))
@@ -86,10 +86,9 @@ class Dataset(BaseDataset):
 
 if __name__=='__main__':
 
-    x_train_dir = ["Heart Data/Image_DCM/png/Image/01/image1.png"]
-    y_train_dir = ["Heart Data/Image_DCM/png/Label/01/label1.png"]
+    train_img_list, train_lab_list, valid_img_list, valid_lab_list = generate_path_list('Heart Data')
 
-    dataset = Dataset(x_train_dir, y_train_dir)
+    dataset = Dataset(valid_img_list, valid_lab_list)
 
     def visualize(**images):
         n = len(images)

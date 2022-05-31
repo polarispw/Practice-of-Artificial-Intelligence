@@ -5,17 +5,9 @@ from segmentation_models_pytorch.utils.meter import AverageValueMeter
 from segmentation_models_pytorch.utils.train import Epoch
 from metrics import get_stats, iou_score, f1_score
 
-class Run_One_Epoch(Epoch):
+class Run_One_Epoch():
 
     def __init__(self, model, loss, metrics, stage_name, device='cpu', verbose=True):
-        super().__init__(
-            model=model,
-            loss=loss,
-            metrics=metrics,
-            stage_name=stage_name,
-            verbose=verbose,
-            device=device,
-        )
         self.model = model
         self.loss = loss
         self.metrics = metrics
@@ -32,7 +24,7 @@ class Run_One_Epoch(Epoch):
             metric.to(self.device)
 
     def _format_logs(self, logs):
-        str_logs = ['{} - {:.4}'.format(k, v) for k, v in logs.items()]
+        str_logs = ['{} : {:.4}'.format(k, v) for k, v in logs.items()]
         s = ', '.join(str_logs)
         return s
 
@@ -49,6 +41,7 @@ class Run_One_Epoch(Epoch):
         logs = {}
         loss_meter = AverageValueMeter()
         metrics_meters = {metric.__name__: AverageValueMeter() for metric in self.metrics}
+        f1_meter = AverageValueMeter()
 
         with tqdm(dataloader, desc=self.stage_name, file=sys.stdout, disable=not (self.verbose)) as iterator:
             for x, y in iterator:
@@ -62,13 +55,15 @@ class Run_One_Epoch(Epoch):
                 logs.update(loss_logs)
 
                 # update metrics logs
-                tp, fp, fn, tn = get_stats(y_pred, y.long(), mode='multilabel', threshold=0.5)
                 for metric_fn in self.metrics:
                     metric_value = metric_fn(y_pred, y).cpu().detach().numpy()
                     metrics_meters[metric_fn.__name__].add(metric_value)
-                f1_val = f1_score(tp, fp, fn, tn, reduction="macro").cpu().detach().numpy()
                 metrics_logs = {k: v.mean for k, v in metrics_meters.items()}
-                metrics_logs["f1_score"] = f1_val.tolist()
+
+                tp, fp, fn, tn = get_stats(y_pred, y.long(), mode='multilabel', threshold=0.5)
+                f1_val = f1_score(tp, fp, fn, tn, reduction="macro").cpu().detach().numpy()
+                f1_meter.add(f1_val)
+                metrics_logs["f1_score"] = f1_meter.mean
                 logs.update(metrics_logs)
 
                 if self.verbose:

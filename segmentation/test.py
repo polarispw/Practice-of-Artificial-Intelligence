@@ -46,7 +46,7 @@ def main(args):
 
     test_dataloader = DataLoader(test_dataset)
 
-    loss = smp.losses.DiceLoss('multilabel')
+    loss = smp.utils.losses.DiceLoss()
     metrics = [
         smp.utils.metrics.IoU(threshold=0.5),
     ]
@@ -63,8 +63,8 @@ def main(args):
 
     if args.visual:
         n = np.random.choice(len(test_dataset))
-        x_train_dir = ["Heart Data/Image_DCM/png/Image/01/image1.png"]
-        y_train_dir = ["Heart Data/Image_DCM/png/Label/01/label1.png"]
+        x_train_dir = ["Heart Data/Image_DCM/png/Image/01/image7.png"]
+        y_train_dir = ["Heart Data/Image_DCM/png/Label/01/label7.png"]
         test_dataset_vis = Dataset(x_train_dir, y_train_dir)
         test_dataset_pre = Dataset(x_train_dir, y_train_dir, augmentation=get_validation_augmentation(), preprocessing=get_preprocessing(preprocessing_fn))
         image_vis, mask = test_dataset_vis[0]
@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
     # 数据集所在根目录
     parser.add_argument('--data-path', type=str, default="Heart Data")
-    parser.add_argument('--weight-path', type=str, default='runs/2022_0530-12_38_07/best_weight.pth')
+    parser.add_argument('--weight-path', type=str, default='runs/2022_0531-11_37_23/best_weight.pth')
 
     # load model weights
     parser.add_argument('--encoder', type=str, default='resnet18', help='encoder backbone')

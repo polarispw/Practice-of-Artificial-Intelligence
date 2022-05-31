@@ -47,24 +47,25 @@ def main(args):
     )
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
-    valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False, num_workers=0)
+    valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
 
-    loss = losses.DiceLoss('multilabel')
+    loss = smp.utils.losses.DiceLoss() + smp.utils.losses.CrossEntropyLoss()
     metrics = [
         smp.utils.metrics.IoU(threshold=0.5),
     ]
 
-    optimizer = optim.Adam(params=model.parameters(), lr=args.lr, weight_decay=1E-6)
+    optimizer = optim.Adam(params=model.parameters(), lr=args.lr, weight_decay=1E-8)
+
     def lr_lambda(current_step: int):
-        num_warmup_steps = 2 if "warmup" in args.scheduler else -1
+        num_warmup_steps = 10 if "warmup" in args.scheduler else -1
         if current_step < num_warmup_steps:
             return float(current_step) / float(max(1, num_warmup_steps))
         if "cosine" in args.scheduler:
-            return ((1 + math.cos(current_step * math.pi / args.epochs)) / 2) * (1 - args.lrf) + args.lrf
+            return ((1 + math.cos(current_step * math.pi / args.epochs)) / 2) * (1 - 1E-3) + 1E-3
         elif "steps" in args.scheduler:
-            lrf_step = [1, 0.2, 0.02, 0.002, 0.0005]
-            return lrf_step[int(current_step / 6)]
-        return max(1E-4, pow(0.6, int(current_step/4)))
+            lrf_step = [1, 0.02, 0.005, 0.001, 0.0005]
+            return lrf_step[min(int(current_step / 25), 4)]
+        return max(1E-4, pow(0.9, int(current_step/4)))
 
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
 
@@ -125,11 +126,11 @@ if __name__ == '__main__':
     # to create env
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default="seg", help='seg or cls')
-    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch-size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=5E-4)
     parser.add_argument('--optimizer', type=str, default='Adam', help='choose from SGD and Adam')
-    parser.add_argument('--scheduler', type=str, default='', help='write your lr schedule keywords')
+    parser.add_argument('--scheduler', type=str, default='steps', help='write your lr schedule keywords')
 
     parser.add_argument('--data-path', type=str, default="Heart Data")
     parser.add_argument('--encoder', type=str, default='resnet18', help='encoder backbone')
