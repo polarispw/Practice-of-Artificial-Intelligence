@@ -23,18 +23,11 @@ def visualize(**images):
 
 
 def main(args):
-    best_model = torch.load(args.weight_path)
 
+    model = torch.load(args.weight_path)
     encoder = args.encoder
-    model = smp.UnetPlusPlus(
-        encoder_name=encoder,
-        encoder_weights=None,
-        classes=3,
-        activation='sigmoid',
-    )
 
     preprocessing_fn = smp.encoders.get_preprocessing_fn(encoder)
-
     # create test dataset
     _, _, valid_img_list, valid_lab_list = generate_path_list(args.data_path, args.mode)
     test_dataset = Dataset(
@@ -44,16 +37,16 @@ def main(args):
         preprocessing=get_preprocessing(preprocessing_fn),
     )
 
-    test_dataloader = DataLoader(test_dataset)
+    test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size)
 
-    loss = smp.utils.losses.DiceLoss()
+    loss = smp.utils.losses.DiceLoss() + smp.utils.losses.CrossEntropyLoss()
     metrics = [
         smp.utils.metrics.IoU(threshold=0.5),
     ]
 
     # evaluate model on test set
     test_epoch = ValidEpoch(
-        model=model,
+        model,
         loss=loss,
         metrics=metrics,
         device=args.device,
@@ -63,15 +56,13 @@ def main(args):
 
     if args.visual:
         n = np.random.choice(len(test_dataset))
-        x_train_dir = ["Heart Data/Image_DCM/png/Image/01/image7.png"]
-        y_train_dir = ["Heart Data/Image_DCM/png/Label/01/label7.png"]
-        test_dataset_vis = Dataset(x_train_dir, y_train_dir)
-        test_dataset_pre = Dataset(x_train_dir, y_train_dir, augmentation=get_validation_augmentation(), preprocessing=get_preprocessing(preprocessing_fn))
-        image_vis, mask = test_dataset_vis[0]
-        image, gt_mask = test_dataset_pre[0]
+        test_dataset_vis = Dataset(valid_img_list, valid_lab_list)
+
+        image_vis, mask = test_dataset_vis[n]
+        image, gt_mask = test_dataset[n]
 
         x_tensor = torch.from_numpy(image).to(args.device).unsqueeze(0)
-        pr_mask = best_model.predict(x_tensor)
+        pr_mask = model.predict(x_tensor)
         pr_mask = (pr_mask.squeeze().cpu().numpy().round())
 
         visualize(
@@ -84,6 +75,7 @@ def main(args):
             pr_mask2=pr_mask[1, :, :],
             pr_mask3=pr_mask[2, :, :]
         )
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
