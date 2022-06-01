@@ -5,6 +5,7 @@ from segmentation_models_pytorch.utils.meter import AverageValueMeter
 from segmentation_models_pytorch.utils.train import Epoch
 from metrics import get_stats, iou_score, f1_score
 
+
 class Run_One_Epoch():
 
     def __init__(self, model, loss, metrics, stage_name, device='cpu', verbose=True):
@@ -40,8 +41,8 @@ class Run_One_Epoch():
 
         logs = {}
         loss_meter = AverageValueMeter()
-        metrics_meters = {metric.__name__: AverageValueMeter() for metric in self.metrics}
         f1_meter = AverageValueMeter()
+        metrics_meters = {metric.__name__: AverageValueMeter() for metric in self.metrics}
 
         with tqdm(dataloader, desc=self.stage_name, file=sys.stdout, disable=not (self.verbose)) as iterator:
             for x, y in iterator:

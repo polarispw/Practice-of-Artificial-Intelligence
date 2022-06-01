@@ -23,11 +23,12 @@ def visualize(**images):
 
 
 def main(args):
-
     model = torch.load(args.weight_path)
+
     encoder = args.encoder
 
     preprocessing_fn = smp.encoders.get_preprocessing_fn(encoder)
+
     # create test dataset
     _, _, valid_img_list, valid_lab_list = generate_path_list(args.data_path, args.mode)
     test_dataset = Dataset(
@@ -50,6 +51,7 @@ def main(args):
         loss=loss,
         metrics=metrics,
         device=args.device,
+        verbose=True
     )
 
     logs = test_epoch.run(test_dataloader)
@@ -85,7 +87,7 @@ if __name__ == '__main__':
 
     # 数据集所在根目录
     parser.add_argument('--data-path', type=str, default="Heart Data")
-    parser.add_argument('--weight-path', type=str, default='runs/2022_0531-11_37_23/best_weight.pth')
+    parser.add_argument('--weight-path', type=str, default='best_weight.pth')
 
     # load model weights
     parser.add_argument('--encoder', type=str, default='resnet18', help='encoder backbone')
