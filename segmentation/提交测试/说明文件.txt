@@ -1,0 +1,5 @@
+1.pycharm 打开编译器会自动提示根据requirements.txt安装
+  也可以命令行创建python环境以后用如下命令 pip install -r requirements.txt
+2.环境配置好后将数据集的Image文件夹放在本目录下 运行test_2stage.py
+3.程序会新建Label文件夹按照数据集格式保存运行结果
+（界面我们正在加，这次辛苦老师用脚本文件跑一下）
