@@ -10,6 +10,7 @@ import cv2
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import segmentation_models_pytorch as smp
+
 from data_process import get_validation_augmentation, get_preprocessing
 from my_dataset import Dataset, generate_path_list
 from model import efficientnetv2_s as create_model

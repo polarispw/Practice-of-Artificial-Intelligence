@@ -1,7 +1,6 @@
 import os
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
 from torch.utils.data import Dataset as BaseDataset
 
 
@@ -49,24 +48,3 @@ class Dataset(BaseDataset):
 
     def __len__(self):
         return len(self.images_list)
-
-
-if __name__ == '__main__':
-
-    valid_img_list = generate_path_list('Image')
-
-    dataset = Dataset(valid_img_list)
-
-    def visualize(**images):
-        n = len(images)
-        plt.figure(figsize=(16, 5))
-        for i, (name, image) in enumerate(images.items()):
-            plt.subplot(1, n, i + 1)
-            plt.xticks([])
-            plt.yticks([])
-            plt.title(' '.join(name.split('_')).title())
-            plt.imshow(image, cmap='gray')
-        plt.show()
-
-    image = dataset[0]
-    visualize(image=image)

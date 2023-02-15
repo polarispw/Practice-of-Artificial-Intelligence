@@ -170,7 +170,7 @@ def main(args):
     results_file = os.path.join(log_path, "err_list.txt")
 
     for epoch in range(start_epoch, args.epochs):
-        train
+        # train
         train_loss, train_acc = train_one_epoch(model=model,
                                                 optimizer=optimizer,
                                                 data_loader=train_loader,
